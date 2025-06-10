@@ -9,29 +9,64 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Step 1: Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo -e "${YELLOW}⚠️ Docker not found. Installing Docker...${NC}"
-    sudo apt-get update
-    sudo apt-get install -y \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release
+#!/bin/bash
 
-    sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+# Install Docker and Docker Compose on Debian
 
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-      $(lsb_release -cs) stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-    echo -e "${GREEN}✅ Docker installed successfully!${NC}"
+# Make sure the script is run as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Please run this script as root or with sudo"
+    exit 1
 fi
+
+# Update package list
+echo "Updating package list..."
+apt-get update -qq
+
+# Install required dependencies
+echo "Installing dependencies..."
+apt-get install -y -qq \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# Add Docker's official GPG key
+echo "Adding Docker's GPG key..."
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Set up the repository
+echo "Setting up Docker repository..."
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine
+echo "Installing Docker..."
+apt-get update -qq
+apt-get install -y -qq \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-compose-plugin
+
+# Start and enable Docker service
+echo "Starting Docker service..."
+systemctl enable --now docker
+
+# Verify installation
+echo "Verifying Docker installation..."
+docker --version
+docker compose version
+
+# Add current user to docker group
+echo "Adding current user to docker group..."
+usermod -aG docker $SUDO_USER
+
+echo -e "\n\e[32mDocker installation complete!\e[0m"
+echo "You may need to log out and back in for group changes to take effect."
+echo "To verify, run: docker run hello-world"
 
 # Step 2: Ensure Docker is running
 if ! sudo systemctl is-active --quiet docker; then
