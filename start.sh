@@ -12,7 +12,12 @@ NC='\033[0m' # No Color
 #!/bin/bash
 
 # Install Docker and Docker Compose on Debian
+# Prevent services from auto-starting (for containers)
+RUN echo 'exit 0' > /usr/sbin/policy-rc.d
 
+# Install packages non-interactively
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends git dbus
 # Make sure the script is run as root
 if [ "$(id -u)" -ne 0 ]; then
     echo "Please run this script as root or with sudo"
